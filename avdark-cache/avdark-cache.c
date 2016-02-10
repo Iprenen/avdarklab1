@@ -45,6 +45,7 @@ struct avdc_cache_line {
         avdc_tag_t tag;
         int        valid;
 
+
 };
 
 /**
@@ -120,13 +121,11 @@ void
 avdc_access(avdark_cache_t *self, avdc_pa_t pa, avdc_access_type_t type)
 {
         /* TODO: Update this function */
-        avdc_tag_t ltag = tag_from_pa(self->llines, pa);
-        avdc_tag_t rtag = tag_from_pa(self->rlines, pa);
-        int lindex = index_from_pa(self->llines, pa);
-        int rindex = index_from_pa(self->rlines, pa);
+        avdc_tag_t tag = tag_from_pa(self, pa);
+        int index = index_from_pa(self, pa);
         int hit;
 
-        hit = (self->llines[index].valid && self->llines[index].tag == tag) || (self->rlines[index].valid && self->rlines[index].tag == tag);
+        hit = (self->llines[index].valid && self->llines[index].tag == tag);
         if (!hit) {
                 self->lines[index].valid = 1;
                 self->lines[index].tag = tag;
