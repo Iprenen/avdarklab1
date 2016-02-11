@@ -20,6 +20,7 @@ typedef unsigned avdc_size_t;
 typedef unsigned avdc_block_size_t;
 typedef unsigned avdc_assoc_t;
 typedef avdc_pa_t avdc_tag_t;
+typedef avdc_cache_line_t set;
 
 /**
  * Memory access type to simulate.
@@ -59,6 +60,7 @@ typedef struct {
          * is stored
          */
         avdc_cache_line_t *lines;
+        
         
 
         /**

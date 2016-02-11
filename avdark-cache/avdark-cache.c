@@ -44,8 +44,19 @@
 struct avdc_cache_line {
         avdc_tag_t tag;
         int        valid;
+        int        LRUTag;
 
 
+};
+
+/**
+*Set information
+*
+*Contains amount of cache lines. 
+*/
+
+struct set {
+    avdc_cache_line set[number_of_sets];
 };
 
 /**
@@ -125,10 +136,10 @@ avdc_access(avdark_cache_t *self, avdc_pa_t pa, avdc_access_type_t type)
         int index = index_from_pa(self, pa);
         int hit;
 
-        hit = (self->llines[index].valid && self->llines[index].tag == tag);
+        hit = (self->set[lines[index]].valid && self->set[lines[index]].tag == tag);
         if (!hit) {
-                self->lines[index].valid = 1;
-                self->lines[index].tag = tag;
+                self->set[lines[index]].valid = 1;
+                self->set[lines[index]].tag = tag;
         }
 
         switch (type) {
