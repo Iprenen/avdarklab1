@@ -13,7 +13,7 @@ PIN_HOME   ?= $(COURSE_DIR)/pin
 PIN_KIT     = $(PIN_HOME)
 
 CC     = gcc
-CFLAGS = -Wall -std=gnu99
+CFLAGS = -Wall -std=gnu99 -ggdb
 
 include $(PIN_HOME)/source/tools/makefile.gnu.config
 

@@ -18,7 +18,7 @@
 #include <string.h>
 #include <assert.h>
 #include <inttypes.h>
-#include <limit.h>
+#include <limits.h>
 
 #ifdef SIMICS
 /* Simics stuff  */
@@ -50,14 +50,14 @@ struct avdc_cache_line {
 };
 
 /**
-*Set information
-*
-*Contains amount of cache lines. 
-*
+ *Set information
+ *
+ *Contains amount of cache lines. 
+ *
 
-struct set {
-    avdc_cache_line set[number_of_sets];
-    };*/
+ struct set {
+ avdc_cache_line set[number_of_sets];
+ };*/
 
 /**
  * Extract the cache line tag from a physical address.
@@ -127,6 +127,15 @@ avdc_dbg_log(avdark_cache_t *self, const char *msg, ...)
         }
 }
 
+int inCache(avdark_cache_t* self, avdc_tag_t tag) {
+        for(int i = 0; i < self->number_of_sets; i++) {
+                for(int j = 0; j < self->assoc; j++){
+                        if(self->lines[i][j].tag == tag)
+                                return 1;
+                }
+        }
+        return 0;
+}
 
 void
 avdc_access(avdark_cache_t *self, avdc_pa_t pa, avdc_access_type_t type)
@@ -134,53 +143,56 @@ avdc_access(avdark_cache_t *self, avdc_pa_t pa, avdc_access_type_t type)
         avdc_tag_t tag = tag_from_pa(self, pa);
         int set = index_from_pa(self, pa);
         int hit = 0;
-				int maxLRU = -1;
-				int way = -1;
+        int maxLRU = -1;
+        int way = -1;
+        /* Debug */
+        int b = inCache(self, tag);
+        /*end debug */
         for(int i = 0; i < self->assoc && !hit; i++) {
-					hit = (self->lines[set][i].valid == 1 && self->lines[set][i].tag == tag)
-					way = i;
+                hit = (self->lines[set][i].valid == 1 && self->lines[set][i].tag == tag);
+                way = i;
         }                
         if (!hit) { /* On miss, evict first invalid line, or line with highest LRU value. */
-					for(int i = 0; i < self->assoc) {
-						if(!self->lines[set][i].valid) { /* Invalid cache line; load in here. */
-							way = i;
-							break;
-						}
-						if(self[set][way]->LRUTag > maxLRU) {
-							maxLRU = self[set][way]->LRUTag;
-							way = i;
-						}
-						/* Add 1 to all LRU tags */
-						self[set][way]->LRUTag++;
-					}
-					/* Load into the found way. */
-					self->lines[set][way].valid = 1; self->lines[set][way].tag = tag; self->LRUTag = 0;
+                for(int i = 0; i < self->assoc; i++) {
+                        if(!self->lines[set][i].valid) { /* Invalid cache line; load in here. */
+                                way = i;
+                                break;
+                        }
+                        if(self->lines[set][i].LRUTag > maxLRU) {
+                                maxLRU = self->lines[set][way].LRUTag;
+                                way = i;
+                        }
+                        /* Add 1 to all LRU tags */
+                        self->lines[set][way].LRUTag++;
+                }
+                /* Load into the found way. */
+                self->lines[set][way].valid = 1; self->lines[set][way].tag = tag; self->lines[set][way].LRUTag = 0;
         }
 
         switch (type) {
         case AVDC_READ: /* Read accesses */
-                avdc_dbg_log(self, "read: pa: 0x%.16lx, tag: 0x%.16lx, index: %d, hit: %d\n",
-                             (unsigned long)pa, (unsigned long)tag, index, hit);
+                avdc_dbg_log(self, "read: pa: 0x%.16lx, tag: 0x%.16lx, set: %d, way: %d, hit: %d\n",
+                             (unsigned long)pa, (unsigned long)tag, set, way, hit);
                 self->stat_data_read += 1;
                 if (!hit)
                         self->stat_data_read_miss += 1;
                 break;
 
         case AVDC_WRITE: /* Write accesses */
-                avdc_dbg_log(self, "write: pa: 0x%.16lx, tag: 0x%.16lx, index: %d, hit: %d\n",
-                             (unsigned long)pa, (unsigned long)tag, index, hit);
+                avdc_dbg_log(self, "write: pa: 0x%.16lx, tag: 0x%.16lx, set: %d, way: %d, hit: %d\n",
+                             (unsigned long)pa, (unsigned long)tag, set, way, hit);   
                 self->stat_data_write += 1;
                 if (!hit)
                         self->stat_data_write_miss += 1;
                 break;
         }
-				if(hit){
-					for(int i = 0; i < self->assoc; i++) /* Update LRU values */
-						if(i == way)
-							self->lines[set][i]->LRUTag = 0;
-						else
-							self->lines[set][i]->LRUTag++;
-				}
+        if(hit){
+                for(int i = 0; i < self->assoc; i++) /* Update LRU values */
+                        if(i == way)
+                                self->lines[set][i].LRUTag = 0;
+                        else
+                                self->lines[set][i].LRUTag++;
+        }
 }
 
 void
@@ -188,11 +200,11 @@ avdc_flush_cache(avdark_cache_t *self)
 {
         /* TODO: Update this function */
         for (int i = 0; i < self->number_of_sets; i++) {
-					for(int j = 0; j < self->assoc; j++) {
-						self->lines[i][j].valid = 0;
-						self->lines[i][j].tag = 0;
-						self->lines[i][j].LRUTag = 0;
-					}
+                for(int j = 0; j < self->assoc; j++) {
+                        self->lines[i][j].valid = 0;
+                        self->lines[i][j].tag = -1;
+                        self->lines[i][j].LRUTag = -1;
+                }
         }
 }
 
@@ -201,7 +213,7 @@ int
 avdc_resize(avdark_cache_t *self,
             avdc_size_t size, avdc_block_size_t block_size, avdc_assoc_t assoc)
 {
-		/* TODO: Update this function */
+        /* TODO: Update this function */
         /* HINT: This function precomputes some common values and
          * allocates the self->lines array. You will need to update
          * this to reflect any changes to how this array is supposed
@@ -228,18 +240,18 @@ avdc_resize(avdark_cache_t *self,
 
         /* (Re-)Allocate space for the tags array */
         if (self->lines){
-					for(int i = 0; i < self->assoc; i++)
-                AVDC_FREE(self->lines[i]);
-					AVDC_FREE(self->lines);
+                for(int i = 0; i < self->number_of_sets; i++)
+                        AVDC_FREE(self->lines[i]);
+                AVDC_FREE(self->lines);
 								
-				}
+        }
         /* HINT: If you change this, you may have to update
          * avdc_delete() to reflect changes to how thie self->lines
          * array is allocated. */
-        self->lines = AVDC_MALLOC(self->assoc, avdc_cache_line_t*);
-				for(int i = 0; i < self->assoc; i++) {
-					self->lines[i] = AVDC_MALLOC(self->number_of_sets, avdc_cache_line_t);
-				}
+        self->lines = AVDC_MALLOC(self->number_of_sets, avdc_cache_line_t*);
+        for(int i = 0; i < self->number_of_sets; i++) {
+                self->lines[i] = AVDC_MALLOC(self->assoc, avdc_cache_line_t);
+        }
 
         /* Flush the cache, this initializes the tag array to a known state */
         avdc_flush_cache(self);
@@ -259,15 +271,17 @@ void
 avdc_print_internals(avdark_cache_t *self)
 {
         int i;
-
+        int j;
         fprintf(stderr, "Cache Internals\n");
         fprintf(stderr, "size: %d, assoc: %d, line-size: %d\n",
                 self->size, self->assoc, self->block_size);
 
         for (i = 0; i < self->number_of_sets; i++)
-                fprintf(stderr, "tag: <0x%.16lx> valid: %d\n",
-                        (long unsigned int)self->lines[i].tag,
-                        self->lines[i].valid);
+                for(j = 0; i < self->assoc; j++) {
+                        fprintf(stderr, "tag: <0x%.16lx> valid: %d\n",
+                                (long unsigned int)self->lines[i][j].tag,
+                                self->lines[i][j].valid);
+                }
 }
 
 void
@@ -301,9 +315,11 @@ avdc_new(avdc_size_t size, avdc_block_size_t block_size,
 void
 avdc_delete(avdark_cache_t *self)
 {
-        if (self->lines)
+        if (self->lines){
+                for(int i = 0; i < self->number_of_sets; i++)
+                        AVDC_FREE(self->lines[i]);
                 AVDC_FREE(self->lines);
-
+        }
         AVDC_FREE(self);
 }
 
