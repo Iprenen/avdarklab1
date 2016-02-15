@@ -18,12 +18,14 @@
 #include <string.h>
 #include <assert.h>
 #include <inttypes.h>
+#include <limit.h>
 
 #ifdef SIMICS
 /* Simics stuff  */
 #include <simics/api.h>
 #include <simics/alloc.h>
 #include <simics/utils.h>
+
 
 #define AVDC_MALLOC(nelems, type) MM_MALLOC(nelems, type)
 #define AVDC_FREE(p) MM_FREE(p)
@@ -45,19 +47,17 @@ struct avdc_cache_line {
         avdc_tag_t tag;
         int        valid;
         int        LRUTag;
-
-
 };
 
 /**
 *Set information
 *
 *Contains amount of cache lines. 
-*/
+*
 
 struct set {
     avdc_cache_line set[number_of_sets];
-};
+    };*/
 
 /**
  * Extract the cache line tag from a physical address.
@@ -131,15 +131,30 @@ avdc_dbg_log(avdark_cache_t *self, const char *msg, ...)
 void
 avdc_access(avdark_cache_t *self, avdc_pa_t pa, avdc_access_type_t type)
 {
-        /* TODO: Update this function */
         avdc_tag_t tag = tag_from_pa(self, pa);
-        int index = index_from_pa(self, pa);
-        int hit;
-
-        hit = (self->set[lines[index]].valid && self->set[lines[index]].tag == tag);
-        if (!hit) {
-                self->set[lines[index]].valid = 1;
-                self->set[lines[index]].tag = tag;
+        int set = index_from_pa(self, pa);
+        int hit = 0;
+				int maxLRU = -1;
+				int way = -1;
+        for(int i = 0; i < self->assoc && !hit; i++) {
+					hit = (self->lines[set][i].valid == 1 && self->lines[set][i].tag == tag)
+					way = i;
+        }                
+        if (!hit) { /* On miss, evict first invalid line, or line with highest LRU value. */
+					for(int i = 0; i < self->assoc) {
+						if(!self->lines[set][i].valid) { /* Invalid cache line; load in here. */
+							way = i;
+							break;
+						}
+						if(self[set][way]->LRUTag > maxLRU) {
+							maxLRU = self[set][way]->LRUTag;
+							way = i;
+						}
+						/* Add 1 to all LRU tags */
+						self[set][way]->LRUTag++;
+					}
+					/* Load into the found way. */
+					self->lines[set][way].valid = 1; self->lines[set][way].tag = tag; self->LRUTag = 0;
         }
 
         switch (type) {
@@ -159,6 +174,13 @@ avdc_access(avdark_cache_t *self, avdc_pa_t pa, avdc_access_type_t type)
                         self->stat_data_write_miss += 1;
                 break;
         }
+				if(hit){
+					for(int i = 0; i < self->assoc; i++) /* Update LRU values */
+						if(i == way)
+							self->lines[set][i]->LRUTag = 0;
+						else
+							self->lines[set][i]->LRUTag++;
+				}
 }
 
 void
@@ -166,8 +188,11 @@ avdc_flush_cache(avdark_cache_t *self)
 {
         /* TODO: Update this function */
         for (int i = 0; i < self->number_of_sets; i++) {
-                self->lines[i].valid = 0;
-                self->lines[i].tag = 0;
+					for(int j = 0; j < self->assoc; j++) {
+						self->lines[i][j].valid = 0;
+						self->lines[i][j].tag = 0;
+						self->lines[i][j].LRUTag = 0;
+					}
         }
 }
 
@@ -202,12 +227,19 @@ avdc_resize(avdark_cache_t *self,
         self->tag_shift = self->block_size_log2 + log2_int32(self->number_of_sets);
 
         /* (Re-)Allocate space for the tags array */
-        if (self->lines)
-                AVDC_FREE(self->lines);
+        if (self->lines){
+					for(int i = 0; i < self->assoc; i++)
+                AVDC_FREE(self->lines[i]);
+					AVDC_FREE(self->lines);
+								
+				}
         /* HINT: If you change this, you may have to update
          * avdc_delete() to reflect changes to how thie self->lines
          * array is allocated. */
-        self->lines = AVDC_MALLOC(self->number_of_sets, avdc_cache_line_t);
+        self->lines = AVDC_MALLOC(self->assoc, avdc_cache_line_t*);
+				for(int i = 0; i < self->assoc; i++) {
+					self->lines[i] = AVDC_MALLOC(self->number_of_sets, avdc_cache_line_t);
+				}
 
         /* Flush the cache, this initializes the tag array to a known state */
         avdc_flush_cache(self);

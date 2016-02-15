@@ -56,10 +56,10 @@ typedef struct {
          * avdark-cache.c. This pointer is initialized by
          * avdc_resize().
          *
-         * TODO: You may need to change how the internal cache state
-         * is stored
+         * 
+         * Store cache lines in 2-Dimensional array, indexed by [set][way]
          */
-        avdc_cache_line_t *lines;
+        avdc_cache_line_t ** lines;
         
         
 
