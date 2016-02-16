@@ -49,7 +49,7 @@ matmul_opt()
                 for (i = 0; i < SIZE; i++) {
                         for (k = 0; k < SIZE; k+=2) {
                                 mat_ref[i][j] += mat_a[i][k] * mat_b[k][j];
-                                mat_ref[i][j+1] += mat_a[i][k+1] * mat_b[k+1][j];
+                                mat_ref[i][j+1] += mat_a[i][k+1] * mat_b[k+1][j+1];
                         }
                 }
         }
