@@ -45,11 +45,12 @@ matmul_opt()
          */
         int i, j, k;
 
-        for (j = 0; j < SIZE; j++) {
+        for (j = 0; j < SIZE; j+=3) {
             for (i = 0; i < SIZE; i++) {
-                for (k = 0; k < SIZE; k+=2) {
+                for (k = 0; k < SIZE; k++) {
                     mat_c[i][j] += mat_a[i][k] * mat_b[k][j];
-                    mat_c[i][j] += mat_a[i][k+1] * mat_b[k+1][j];
+                    mat_c[i][j+1] += mat_a[i][k] * mat_b[k][j+1];
+                    mat_c[i][j+2] += mat_a[i][k] * mat_b[k][j+2];
                 }
             }
         }
