@@ -45,7 +45,7 @@ matmul_opt()
          */
         int i, j, k;
 
-        for (j = 0; j < SIZE; j+=8) {
+        for (j = 0; j < SIZE; j+=5) {
             for (i = 0; i < SIZE; i++) {
                 for (k = 0; k < SIZE; k++) {
                     mat_c[i][j] += mat_a[i][k] * mat_b[k][j];
@@ -54,9 +54,6 @@ matmul_opt()
                     mat_c[i][j+3] += mat_a[i][k] * mat_b[k][j+3];
 
                     mat_c[i][j+4] += mat_a[i][k] * mat_b[k][j+4];
-                    mat_c[i][j+5] += mat_a[i][k] * mat_b[k][j+5];
-                    mat_c[i][j+6] += mat_a[i][k] * mat_b[k][j+6];
-                    mat_c[i][j+7] += mat_a[i][k] * mat_b[k][j+7];
                 }
             }
         }
