@@ -52,8 +52,6 @@ matmul_opt()
                     mat_c[i][j+1] += mat_a[i][k] * mat_b[k][j+1];
                     mat_c[i][j+2] += mat_a[i][k] * mat_b[k][j+2];
                     mat_c[i][j+3] += mat_a[i][k] * mat_b[k][j+3];
-
-                    mat_c[i][j+4] += mat_a[i][k] * mat_b[k][j+4];
                 }
             }
         }
